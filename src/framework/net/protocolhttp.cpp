@@ -412,12 +412,28 @@ int Http::ws(const std::string& url, int timeout)
 
         if (msg->type == ix::WebSocketMessageType::Close) {
             const std::string closeMessage = "close_code::normal";
+
+            // The Close callback runs on the WebSocket's own worker thread.
+            // Dropping the last shared_ptr<ix::WebSocket> here triggers
+            // ~WebSocket() -> stop() -> thread::join(), which tries to join
+            // the current thread and throws resource_deadlock_would_occur,
+            // terminating the process. Transfer ownership to the dispatcher
+            // event so the destruction happens on the main thread.
+            std::shared_ptr<ix::WebSocket> expiringSocket;
             {
                 std::lock_guard<std::mutex> lock(m_mutex);
-                m_websockets.erase(operationId);
+                const auto wit = m_websockets.find(operationId);
+                if (wit != m_websockets.end()) {
+                    expiringSocket = std::move(wit->second);
+                    m_websockets.erase(wit);
+                }
                 m_operations.erase(operationId);
             }
-            g_dispatcher.addEvent([result, closeMessage] {
+
+            g_dispatcher.addEvent([result, closeMessage, expiringSocket = std::move(expiringSocket)] {
+                // expiringSocket is destroyed on the dispatcher thread after
+                // the callback returns, avoiding the self-join above.
+                (void)expiringSocket;
                 g_lua.callGlobalField("g_http", "onWsClose", result->operationId, closeMessage);
             });
         }

@@ -28,6 +28,7 @@
 #include <ixwebsocket/IXHttp.h>
 #include <ixwebsocket/IXWebSocket.h>
 
+#include <atomic>
 #include <mutex>
 #include <queue>
 
@@ -103,7 +104,10 @@ private:
 
     bool m_working = false;
     bool m_enable_time_out_on_read_write = false;
-    int m_operationId = 1;
+    // Atomic so registerOperation / ws() can hand out unique ids without
+    // holding m_mutex and without assuming the public API is only ever
+    // called from the main thread.
+    std::atomic<int> m_operationId{ 1 };
     std::unordered_map<int, HttpResult_ptr> m_operations;
     std::unordered_map<int, std::shared_ptr<ix::WebSocket>> m_websockets;
     std::unordered_map<std::string, HttpResult_ptr> m_downloads;

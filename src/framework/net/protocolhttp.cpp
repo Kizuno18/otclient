@@ -345,18 +345,12 @@ int Http::ws(const std::string& url, int timeout)
             g_dispatcher.addEvent([result] {
                 g_lua.callGlobalField("g_http", "onWsOpen", result->operationId, "code::websocket_open");
             });
-            return;
-        }
-
-        if (msg->type == ix::WebSocketMessageType::Message) {
+        } else if (msg->type == ix::WebSocketMessageType::Message) {
             const std::string payload = msg->str;
             g_dispatcher.addEvent([result, payload] {
                 g_lua.callGlobalField("g_http", "onWsMessage", result->operationId, payload);
             });
-            return;
-        }
-
-        if (msg->type == ix::WebSocketMessageType::Error) {
+        } else if (msg->type == ix::WebSocketMessageType::Error) {
             result->error = msg->errorInfo.reason;
             const std::string errorReason = fmt::format("close_code::error {}", result->error);
 
@@ -379,9 +373,7 @@ int Http::ws(const std::string& url, int timeout)
                 (void)expiringSocket;
                 g_lua.callGlobalField("g_http", "onWsError", result->operationId, errorReason);
             });
-        }
-
-        if (msg->type == ix::WebSocketMessageType::Close) {
+        } else if (msg->type == ix::WebSocketMessageType::Close) {
             const std::string closeMessage = "close_code::normal";
 
             // The Close callback runs on the WebSocket's own worker thread.
@@ -410,12 +402,17 @@ int Http::ws(const std::string& url, int timeout)
         }
     });
 
-    websocket->start();
-
+    // Track the socket before start() so an immediate Close/Error arriving
+    // on a fast reject path (TLS failure, TCP RST, server close on handshake)
+    // finds the map entry and releases the socket through the deferred-destroy
+    // path, rather than silently leaking into m_websockets after the insert
+    // completes.
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_websockets[operationId] = websocket;
     }
+
+    websocket->start();
 
     return operationId;
 }

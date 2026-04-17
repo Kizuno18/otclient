@@ -92,6 +92,10 @@ private:
     int computeProgress(const int current, const int total);
     void copyHeaders(const std::unordered_map<std::string, std::string>& source, ix::WebSocketHttpHeaders& target);
 
+    HttpResult_ptr registerOperation(const std::string& url, int& operationId);
+    std::shared_ptr<ix::HttpRequestArgs> buildRequest(const std::string& url, const std::string& verb, int timeout);
+    void unregisterOperation(int operationId);
+
     bool m_working = false;
     bool m_enable_time_out_on_read_write = false;
     int m_operationId = 1;

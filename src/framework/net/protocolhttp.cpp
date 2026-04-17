@@ -97,27 +97,9 @@ int Http::get(const std::string& url, int timeout)
         return -1;
     }
 
-    const int operationId = m_operationId++;
-    auto result = std::make_shared<HttpResult>();
-    result->url = url;
-    result->operationId = operationId;
-
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_operations[operationId] = result;
-    }
-
-    auto request = g_ixHttpClient->createRequest(url, ix::HttpClient::kGet);
-    request->connectTimeout = timeout;
-    if (m_enable_time_out_on_read_write) {
-        request->transferTimeout = timeout;
-    }
-    request->followRedirects = true;
-    request->extraHeaders["User-Agent"] = m_userAgent;
-    for (const auto& header : m_custom_header) {
-        request->extraHeaders[header.first] = header.second;
-    }
-
+    int operationId = 0;
+    auto result = registerOperation(url, operationId);
+    auto request = buildRequest(url, ix::HttpClient::kGet, timeout);
     result->request = request;
 
     request->onProgressCallback = [this, result](int current, int total) {
@@ -142,11 +124,7 @@ int Http::get(const std::string& url, int timeout)
             result->progress = 100;
         }
         result->error = describeHttpError(response, result);
-
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_operations.erase(operationId);
-        }
+        unregisterOperation(operationId);
 
         g_dispatcher.addEvent([result] {
             g_lua.callGlobalField("g_http", "onGet", result->operationId, result->url, result->error, result->response);
@@ -156,10 +134,7 @@ int Http::get(const std::string& url, int timeout)
     if (!g_ixHttpClient->performRequest(request, callback)) {
         result->finished = true;
         result->error = "http_error::queue";
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_operations.erase(operationId);
-        }
+        unregisterOperation(operationId);
         g_dispatcher.addEvent([result] {
             g_lua.callGlobalField("g_http", "onGet", result->operationId, result->url, result->error, result->response);
         });
@@ -182,36 +157,17 @@ int Http::post(const std::string& url, const std::string& data, int timeout, boo
         return -1;
     }
 
-    const int operationId = m_operationId++;
-    auto result = std::make_shared<HttpResult>();
-    result->url = url;
-    result->operationId = operationId;
+    int operationId = 0;
+    auto result = registerOperation(url, operationId);
     result->postData = data;
 
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_operations[operationId] = result;
-    }
-
-    auto request = g_ixHttpClient->createRequest(url, ix::HttpClient::kPost);
-    request->connectTimeout = timeout;
-    if (m_enable_time_out_on_read_write) {
-        request->transferTimeout = timeout;
-    }
-    request->followRedirects = true;
+    auto request = buildRequest(url, ix::HttpClient::kPost, timeout);
     request->body = data;
-    request->extraHeaders["User-Agent"] = m_userAgent;
     request->extraHeaders["Accept"] = "*/*";
     request->extraHeaders["Connection"] = "close";
-    if (isJson) {
-        request->extraHeaders["Content-Type"] = "application/json";
-    } else {
-        request->extraHeaders["Content-Type"] = "application/x-www-form-urlencoded";
-    }
-    for (const auto& header : m_custom_header) {
-        request->extraHeaders[header.first] = header.second;
-    }
-
+    request->extraHeaders["Content-Type"] = isJson
+        ? "application/json"
+        : "application/x-www-form-urlencoded";
     result->request = request;
 
     request->onProgressCallback = [this, result](int current, int total) {
@@ -236,11 +192,7 @@ int Http::post(const std::string& url, const std::string& data, int timeout, boo
             result->progress = 100;
         }
         result->error = describeHttpError(response, result);
-
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_operations.erase(operationId);
-        }
+        unregisterOperation(operationId);
 
         g_dispatcher.addEvent([result] {
             g_lua.callGlobalField("g_http", "onPost", result->operationId, result->url, result->error, result->response);
@@ -250,10 +202,7 @@ int Http::post(const std::string& url, const std::string& data, int timeout, boo
     if (!g_ixHttpClient->performRequest(request, callback)) {
         result->finished = true;
         result->error = "http_error::queue";
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_operations.erase(operationId);
-        }
+        unregisterOperation(operationId);
         g_dispatcher.addEvent([result] {
             g_lua.callGlobalField("g_http", "onPost", result->operationId, result->url, result->error, result->response);
         });
@@ -272,27 +221,9 @@ int Http::download(const std::string& url, const std::string& path, int timeout)
         return -1;
     }
 
-    const int operationId = m_operationId++;
-    auto result = std::make_shared<HttpResult>();
-    result->url = url;
-    result->operationId = operationId;
-
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_operations[operationId] = result;
-    }
-
-    auto request = g_ixHttpClient->createRequest(url, ix::HttpClient::kGet);
-    request->connectTimeout = timeout;
-    if (m_enable_time_out_on_read_write) {
-        request->transferTimeout = timeout;
-    }
-    request->followRedirects = true;
-    request->extraHeaders["User-Agent"] = m_userAgent;
-    for (const auto& header : m_custom_header) {
-        request->extraHeaders[header.first] = header.second;
-    }
-
+    int operationId = 0;
+    auto result = registerOperation(url, operationId);
+    auto request = buildRequest(url, ix::HttpClient::kGet, timeout);
     result->request = request;
 
     const auto lastUpdate = std::make_shared<ticks_t>(stdext::millis());
@@ -330,11 +261,7 @@ int Http::download(const std::string& url, const std::string& path, int timeout)
         result->error = describeHttpError(response, result);
 
         const auto checksum = g_crypt.crc32(result->response, false);
-
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_operations.erase(operationId);
-        }
+        unregisterOperation(operationId);
 
         g_dispatcher.addEvent([this, result, path, checksum] {
             if (result->error.empty()) {
@@ -351,10 +278,7 @@ int Http::download(const std::string& url, const std::string& path, int timeout)
         result->finished = true;
         result->error = "http_error::queue";
         const auto checksum = g_crypt.crc32(result->response, false);
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_operations.erase(operationId);
-        }
+        unregisterOperation(operationId);
         g_dispatcher.addEvent([this, result, path, checksum] {
             g_lua.callGlobalField("g_http", "onDownload", result->operationId, result->url, result->error, path, checksum);
         });
@@ -574,4 +498,39 @@ void Http::copyHeaders(const std::unordered_map<std::string, std::string>& sourc
     for (const auto& header : source) {
         target[header.first] = header.second;
     }
+}
+
+HttpResult_ptr Http::registerOperation(const std::string& url, int& operationId)
+{
+    operationId = m_operationId++;
+    auto result = std::make_shared<HttpResult>();
+    result->url = url;
+    result->operationId = operationId;
+
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_operations[operationId] = result;
+    }
+    return result;
+}
+
+std::shared_ptr<ix::HttpRequestArgs> Http::buildRequest(const std::string& url, const std::string& verb, int timeout)
+{
+    auto request = g_ixHttpClient->createRequest(url, verb);
+    request->connectTimeout = timeout;
+    if (m_enable_time_out_on_read_write) {
+        request->transferTimeout = timeout;
+    }
+    request->followRedirects = true;
+    request->extraHeaders["User-Agent"] = m_userAgent;
+    for (const auto& header : m_custom_header) {
+        request->extraHeaders[header.first] = header.second;
+    }
+    return request;
+}
+
+void Http::unregisterOperation(int operationId)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_operations.erase(operationId);
 }

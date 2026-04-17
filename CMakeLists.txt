@@ -43,6 +43,40 @@ include(MessageColors)
 include(LoggingHelper)
 include(GNUInstallDirs)
 
+set(_OTCLIENT_EMSCRIPTEN_COMPILER FALSE)
+if(DEFINED CMAKE_CXX_COMPILER)
+    string(FIND "${CMAKE_CXX_COMPILER}" "em++" _OTCLIENT_EMSCRIPTEN_COMPILER_POS)
+    if(NOT _OTCLIENT_EMSCRIPTEN_COMPILER_POS EQUAL -1)
+        set(_OTCLIENT_EMSCRIPTEN_COMPILER TRUE)
+    endif()
+endif()
+
+if(NOT DEFINED WASM)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten"
+            OR CMAKE_CXX_COMPILER_ID MATCHES "Emscripten"
+            OR _OTCLIENT_EMSCRIPTEN_COMPILER)
+        set(WASM ON CACHE BOOL "Build otclient for WebAssembly targets" FORCE)
+    else()
+        set(WASM OFF CACHE BOOL "Build otclient for WebAssembly targets" FORCE)
+    endif()
+endif()
+
+if(WASM)
+    message(STATUS "WASM: ON")
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten"
+        OR CMAKE_CXX_COMPILER_ID MATCHES "Emscripten"
+        OR _OTCLIENT_EMSCRIPTEN_COMPILER
+        OR WASM)
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    # Add threading and atomics support for WebAssembly builds
+    # This fixes linker issues with --shared-memory flag when using pthreads
+    # Using add_compile_options ensures flags are applied to all targets including dependencies
+    add_compile_options(-pthread -matomics -mbulk-memory)
+    add_link_options(-pthread -matomics -mbulk-memory)
+endif()
+
 # *****************************************************************************
 # Options
 # *****************************************************************************
@@ -100,7 +134,19 @@ endif()
 # Add project
 # *****************************************************************************
 
-# Protobuf
-add_subdirectory(src/protobuf)
 # Src
 add_subdirectory(src)
+
+option(OTCLIENT_BUILD_TESTS "Build unit tests" ON)
+
+if(OTCLIENT_BUILD_TESTS AND NOT ANDROID)
+    enable_testing()
+    add_subdirectory(tests)
+    log_option_enabled("Build tests")
+else()
+  if(ANDROID)
+    log_option_disabled("Build tests (disabled for Android)")
+  else()
+    log_option_disabled("Build tests")
+  endif()
+endif()

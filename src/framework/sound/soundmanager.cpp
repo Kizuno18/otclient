@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2026 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,29 +21,30 @@
  */
 
 #include "soundmanager.h"
+#include <nlohmann/json.hpp>
+#ifdef FRAMEWORK_PROTOBUF
+#include <sounds.pb.h>
+#endif
+
 #include "soundbuffer.h"
-#include "soundeffect.h"
 #include "soundchannel.h"
+#include "soundeffect.h"
 #include "soundfile.h"
+#include "soundsource.h"
 #include "streamsoundsource.h"
 #include "combinedsoundsource.h"
+#include "client/game.h"
+#include "framework/core/asyncdispatcher.h"
+#include "framework/core/clock.h"
+#include "framework/core/garbagecollection.h"
+#include "framework/core/resourcemanager.h"
+#include "framework/util/stats.h"
 
-#include <cstdint>
-#include <framework/core/asyncdispatcher.h>
-#include <framework/core/clock.h>
-#include <framework/core/resourcemanager.h>
-#include <framework/core/garbagecollection.h>
-#include <nlohmann/json.hpp>
-#include <sounds.pb.h>
-
+#ifdef FRAMEWORK_PROTOBUF
 using namespace otclient::protobuf;
+#endif
 
 using json = nlohmann::json;
-
-class StreamSoundSource;
-class CombinedSoundSource;
-class SoundFile;
-class SoundBuffer;
 
 SoundManager g_sounds;
 
@@ -102,6 +103,7 @@ void SoundManager::terminate()
 
 void SoundManager::poll()
 {
+    AutoStat s(STATS_MAIN, "PollSounds");
     static ticks_t lastUpdate = 0;
     static uint_fast8_t soundsErased = 0;
 
@@ -348,14 +350,17 @@ bool SoundManager::isEaxEnabled()
     return false;
 }
 
+#ifdef FRAMEWORK_PROTOBUF
 using ProtobufSoundFiles = google::protobuf::RepeatedPtrField<sounds::Sound>;
 using ProtobufSoundEffects = google::protobuf::RepeatedPtrField<sounds::NumericSoundEffect>;
 using ProtobufLocationAmbiences = google::protobuf::RepeatedPtrField<sounds::AmbienceStream>;
 using ProtobufItemAmbiences = google::protobuf::RepeatedPtrField<sounds::AmbienceObjectStream>;
 using ProtobufMusicTracks = google::protobuf::RepeatedPtrField<sounds::MusicTemplate>;
+#endif
 
 bool SoundManager::loadFromProtobuf(const std::string& directory, const std::string& fileName)
 {
+#ifdef FRAMEWORK_PROTOBUF
     /*
         * file structure
         <struct> Sounds
@@ -504,6 +509,10 @@ bool SoundManager::loadFromProtobuf(const std::string& directory, const std::str
         g_logger.error("Failed to load soundbank '{}': {}", fileName, e.what());
         return false;
     }
+#else
+    g_logger.error("Protobuf not supported in this build. Enable FRAMEWORK_PROTOBUF");
+    return false;
+#endif
 }
 
 bool SoundManager::loadClientFiles(const std::string& directory)

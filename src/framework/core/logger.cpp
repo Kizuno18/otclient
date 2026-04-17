@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2026 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,13 +21,9 @@
  */
 
 #include "logger.h"
+
 #include "eventdispatcher.h"
-
-#include <framework/core/asyncdispatcher.h>
-#include <framework/core/resourcemanager.h>
-
-#include <framework/luaengine/luainterface.h>
-#include <framework/platform/platform.h>
+#include "framework/platform/platform.h"
 
 #ifdef FRAMEWORK_GRAPHICS
 #include <framework/platform/platformwindow.h>
@@ -42,11 +38,7 @@ Logger g_logger;
 namespace
 {
     constexpr std::string_view s_logPrefixes[] = { "", "", "", "WARNING: ", "ERROR: ", "FATAL ERROR: " };
-#if ENABLE_ENCRYPTION == 1
-    bool s_ignoreLogs = true;
-#else
     bool s_ignoreLogs = false;
-#endif
 }
 
 void Logger::log(Fw::LogLevel level, const std::string_view message)

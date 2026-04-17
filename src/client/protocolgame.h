@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2026 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,10 +22,9 @@
 
 #pragma once
 
-#include "creature.h"
 #include "declarations.h"
-#include "protocolcodes.h"
-#include <framework/net/protocol.h>
+#include "framework/net/protocol.h"
+#include "staticdata.h"
 
 class ProtocolGame final : public Protocol
 {
@@ -93,6 +92,7 @@ public:
     void sendPassLeadership(uint32_t creatureId);
     void sendLeaveParty();
     void sendShareExperience(bool active);
+    void sendPartyAnalyzerAction(uint8_t action, const std::vector<std::tuple<uint16_t, uint64_t>>& items = {});
     void sendOpenOwnChannel();
     void sendInviteToOwnChannel(std::string_view name);
     void sendExcludeFromOwnChannel(std::string_view name);
@@ -130,12 +130,21 @@ public:
     void sendTransferCoins(std::string_view recipient, uint16_t amount);
     void sendOpenTransactionHistory(uint8_t entriesPerPage);
     void sendMarketLeave();
-    void sendMarketBrowse(uint8_t browseId, uint16_t browseType);
+    void sendMarketBrowse(uint8_t browseId, uint16_t browseType, uint8_t tier = 0);
     void sendMarketCreateOffer(uint8_t type, uint16_t itemId, uint8_t itemTier, uint16_t amount, uint64_t price, uint8_t anonymous);
     void sendMarketCancelOffer(uint32_t timestamp, uint16_t counter);
     void sendMarketAcceptOffer(uint32_t timestamp, uint16_t counter, uint16_t amount);
     void sendPreyAction(uint8_t slot, uint8_t actionType, uint16_t index);
     void sendPreyRequest();
+    void sendOpenPortableForge();
+    void sendForgeRequest(Otc::ForgeAction_t actionType, bool convergence = false, uint16_t firstItemid = 0, uint8_t firstItemTier = 0, uint16_t secondItemId = 0, bool improveChance = false, bool tierLoss = false);
+    void sendForgeBrowseHistoryRequest(uint16_t page);
+    void sendExivaRestrictions(bool allowAll, bool allowOwnGuild, bool allowOwnParty, bool allowVipList,
+                               bool allowPlayerWhitelist, bool allowGuildWhitelist,
+                               const std::vector<std::string>& characterWhiteList,
+                               const std::vector<std::string>& removeCharacter,
+                               const std::vector<std::string>& guildWhiteList,
+                               const std::vector<std::string>& removeGuild);
     void sendApplyImbuement(uint8_t slot, uint32_t imbuementId, bool protectionCharm);
     void sendClearImbuement(uint8_t slot);
     void sendCloseImbuingWindow();
@@ -143,10 +152,13 @@ public:
     void sendOpenRewardHistory();
     void sendGetRewardDaily(const uint8_t bonusShrine, const std::map<uint16_t, uint8_t>& items);
     void sendStashWithdraw(uint16_t itemId, uint32_t count, uint8_t stackpos);
+    void sendStashStow(const Position& position, const uint16_t itemId, const uint32_t count, const uint8_t stackpos, const uint8_t action);
     void sendHighscoreInfo(uint8_t action, uint8_t category, uint32_t vocation, std::string_view world, uint8_t worldType, uint8_t battlEye, uint16_t page, uint8_t totalPages);
     void sendImbuementDurations(bool isOpen = false);
+    void sendOpenWheelOfDestiny(uint32_t playerId);
+    void sendApplyWheelOfDestiny(const std::vector<uint16_t>& wheelPointsVec, const std::vector<uint16_t>& activeGemsVec);
     void sendRequestBestiary();
-    void sendRequestBestiaryOverview(std::string_view catName);
+    void sendRequestBestiaryOverview(std::string_view catName, bool search = false, std::vector<uint16_t> raceIds = {});
     void sendRequestBestiarySearch(uint16_t raceId);
     void sendBuyCharmRune(uint8_t runeId, uint8_t action, uint16_t raceId);
     void sendCyclopediaRequestCharacterInfo(uint32_t playerId, Otc::CyclopediaCharacterInfoType_t characterInfoType, uint16_t entriesPerPage, uint16_t page);
@@ -161,6 +173,11 @@ public:
     void sendInspectionNormalObject(const Position& position);
     void sendInspectionObject(Otc::InspectObjectTypes inspectionType, uint16_t itemId, uint8_t itemCount);
 
+    // Wheel of Destiny
+    void sendOpenWheel(uint32_t playerId);
+    void sendApplyWheelPoints(const std::vector<uint16_t>& slotPoints,uint16_t greenGem,uint16_t redGem,uint16_t acquaGem,uint16_t purpleGem);
+    void sendWheelGemAction(const uint8_t actionType, const uint8_t param, const uint8_t pos);
+
     // otclient only
     void sendChangeMapAwareRange(uint8_t xrange, uint8_t yrange);
 
@@ -174,6 +191,9 @@ protected:
 
 public:
     void addPosition(const OutputMessagePtr& msg, const Position& position);
+
+    int getRecivedPacketsCount() { return m_recivedPackeds; }
+    int getRecivedPacketsSize() { return m_recivedPackedsSize; }
 
 private:
     void parseStoreButtonIndicators(const InputMessagePtr& msg);
@@ -242,11 +262,13 @@ private:
     void parseDistanceMissile(const InputMessagePtr& msg);
     void parseAnthem(const InputMessagePtr& msg);
     void parseItemClasses(const InputMessagePtr& msg);
+    void parseForgeResult(const InputMessagePtr& msg);
     void parseCreatureMark(const InputMessagePtr& msg);
     void parseTrappers(const InputMessagePtr& msg);
     void parseOpenForge(const InputMessagePtr& msg);
     void setCreatureVocation(const InputMessagePtr& msg, const uint32_t creatureId) const;
     void addCreatureIcon(const InputMessagePtr& msg, const uint32_t creatureId) const;
+    void parseBrowseForgeHistory(const InputMessagePtr& msg);
     void parseCloseForgeWindow(const InputMessagePtr& msg);
     void parseCreatureData(const InputMessagePtr& msg);
     void parseCreatureHealth(const InputMessagePtr& msg);
@@ -289,6 +311,7 @@ private:
     void parseQuestTracker(const InputMessagePtr& msg);
     void parseKillTracker(const InputMessagePtr& msg);
     void parseOpenOutfitWindow(const InputMessagePtr& msg) const;
+    void parseExivaRestrictions(const InputMessagePtr& msg);
     void parseVipAdd(const InputMessagePtr& msg);
     void parseVipState(const InputMessagePtr& msg);
     void parseVipLogout(const InputMessagePtr& msg);
@@ -310,6 +333,7 @@ private:
     void parseTaskHuntingData(const InputMessagePtr& msg);
     void parseExperienceTracker(const InputMessagePtr& msg);
     void parseLootContainers(const InputMessagePtr& msg);
+    void parseMonkData(const InputMessagePtr& msg);
     void parseCyclopediaHouseAuctionMessage(const InputMessagePtr& msg);
     void parseCyclopediaHousesInfo(const InputMessagePtr& msg);
     void parseCyclopediaHouseList(const InputMessagePtr& msg);
@@ -355,11 +379,19 @@ private:
     void parseBestiaryMonsterData(const InputMessagePtr& msg);
     void parseBestiaryCharmsData(const InputMessagePtr& msg);
 
+    // 15x
+    void parseWeaponProficiencyExperience(const InputMessagePtr& msg);
+    void parseWeaponProficiencyInfo(const InputMessagePtr& msg);
+
     void parseHighscores(const InputMessagePtr& msg);
     void parseAttachedEffect(const InputMessagePtr& msg);
     void parseDetachEffect(const InputMessagePtr& msg);
     void parseCreatureShader(const InputMessagePtr& msg);
     void parseMapShader(const InputMessagePtr& msg);
+    void parseOpenWheelWindow(const InputMessagePtr& msg);
+
+    void parseAttachedPaperdoll(const InputMessagePtr& msg);
+    void parseDetachPaperdoll(const InputMessagePtr& msg);
 
     MarketOffer readMarketOffer(const InputMessagePtr& msg, uint8_t action, uint16_t var);
 
@@ -380,11 +412,17 @@ public:
     Position getPosition(const InputMessagePtr& msg);
 
 private:
+    PaperdollPtr getPaperdoll(const InputMessagePtr& msg) const;
+
     bool m_enableSendExtendedOpcode{ false };
     bool m_gameInitialized{ false };
     bool m_mapKnown{ false };
     bool m_firstRecv{ true };
-    bool m_record {false};
+    bool m_record{ false };
+
+    ticks_t m_lastPartyAnalyzerCall{ 0 };
+    int m_recivedPackeds = 0;
+    int m_recivedPackedsSize = 0;
 
     std::string m_accountName;
     std::string m_accountPassword;

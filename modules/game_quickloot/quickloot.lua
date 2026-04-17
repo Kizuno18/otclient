@@ -204,7 +204,15 @@ function QuickLoot.Define()
             return g_logger.error("Something went wrong, file is above 100MB, won't be saved")
         end
 
-        g_resources.writeFileContents(file, result)
+        -- Safely attempt to write the file, ignoring errors during logout
+        local writeStatus, writeError = pcall(function()
+            return g_resources.writeFileContents(file, result)
+        end)
+        
+        if not writeStatus then
+            -- Log the error but don't spam the console during normal logout
+            g_logger.debug("Could not save QuickLoot settings during logout: " .. tostring(writeError))
+        end
     end
 
     function QuickLoot.start(quickLootFallbackToMainContainer, lootContainers)
@@ -326,7 +334,12 @@ function QuickLoot.Define()
         end
 
         QuickLoot.mouseGrabberWidget:grabMouse()
-        g_mouse.pushCursor("target")
+        -- Use native cursor when enabled, otherwise use custom cursor
+        if modules.client_options and modules.client_options.getOption('nativeCursor') then
+            g_window.setSystemCursor('cross')
+        else
+            g_mouse.pushCursor("target")
+        end
 
         QuickLoot.lastSelectBag = self:getParent()
         QuickLoot.actionsId = self.Select
@@ -389,7 +402,12 @@ function QuickLoot.Define()
             quickLootController.ui:show()
         end
 
-        g_mouse.popCursor("target")
+        -- Restore cursor
+        if modules.client_options and modules.client_options.getOption('nativeCursor') then
+            g_window.restoreMouseCursor()
+        else
+            g_mouse.popCursor("target")
+        end
         self:ungrabMouse()
 
         return true

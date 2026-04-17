@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
+* Copyright (c) 2010-2026 OTClient <https://github.com/edubart/otclient>
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -21,16 +21,20 @@
 */
 
 #include "animator.h"
-#include "declarations.h"
 
-#include <framework/core/clock.h>
-#include <framework/core/filestream.h>
+#include "framework/core/clock.h"
+#include "framework/core/filestream.h"
 
+#ifdef FRAMEWORK_PROTOBUF
 void Animator::unserializeAppearance(const appearances::SpriteAnimation& animation)
 {
     m_animationPhases = animation.sprite_phase_size();
     m_async = !animation.synchronized();
     m_loopCount = animation.loop_count();
+    if (animation.has_loop_type())
+        m_loopType = animation.loop_type();
+    else
+        m_loopType = appearances::ANIMATION_LOOP_TYPE_INFINITE;
     m_startPhase = animation.default_start_phase();
 
     for (const auto& phase : animation.sprite_phase()) {
@@ -42,6 +46,7 @@ void Animator::unserializeAppearance(const appearances::SpriteAnimation& animati
     assert(m_animationPhases == static_cast<int>(m_phaseDurations.size()));
     assert(m_startPhase >= -1 && m_startPhase < m_animationPhases);
 }
+#endif
 
 void Animator::unserialize(const int animationPhases, const FileStreamPtr& fin)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2026 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,26 +21,25 @@
  */
 
 #include "thingtypemanager.h"
-#include "creature.h"
+
+#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
+
 #include "game.h"
+#include "spriteappearances.h"
 #include "thingtype.h"
+#include "framework/core/filestream.h"
+#include "framework/core/resourcemanager.h"
+#include "framework/otml/otmldocument.h"
+#ifdef FRAMEWORK_PROTOBUF
+#include <staticdata.pb.h>
+#endif
 
 #ifdef FRAMEWORK_EDITOR
 #include "itemtype.h"
 #include "creatures.h"
 #include <framework/core/binarytree.h>
 #endif
-
-#include <framework/core/filestream.h>
-#include <framework/core/resourcemanager.h>
-#include <framework/otml/otml.h>
-
-#include <client/spriteappearances.h>
-
-#include <appearances.pb.h>
-#include <staticdata.pb.h>
-
-#include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
@@ -147,6 +146,7 @@ bool ThingTypeManager::loadOtml(std::string file)
 
 bool ThingTypeManager::loadAppearances(const std::string& file)
 {
+#ifdef FRAMEWORK_PROTOBUF
     try {
         if (!g_game.getFeature(Otc::GameLoadSprInsteadProtobuf)) {
             g_spriteAppearances.unload();
@@ -159,7 +159,15 @@ bool ThingTypeManager::loadAppearances(const std::string& file)
                     appearancesFile = obj["file"];
                 } else if (type == "sprite") {
                     int lastSpriteId = obj["lastspriteid"].get<int>();
-                    g_spriteAppearances.addSpriteSheet(std::make_shared<SpriteSheet>(obj["firstspriteid"].get<int>(), lastSpriteId, static_cast<SpriteLayout>(obj["spritetype"].get<int>()), obj["file"].get<std::string>()));
+                    const auto& sheet = std::make_shared<SpriteSheet>(obj["firstspriteid"].get<int>(), lastSpriteId, static_cast<SpriteLayout>(obj["spritetype"].get<int>()), obj["file"].get<std::string>());
+                    const int spritesPerSheet = sheet->getSpritesPerSheet();
+                    const int maxSpriteId = sheet->firstId + spritesPerSheet - 1;
+                    if (lastSpriteId > maxSpriteId) {
+                        g_logger.debug("Sprite sheet '{}' lastspriteid {} exceeds capacity {}, clamping to {}", sheet->file, lastSpriteId, maxSpriteId, maxSpriteId);
+                        lastSpriteId = maxSpriteId;
+                        sheet->lastId = maxSpriteId;
+                    }
+                    g_spriteAppearances.addSpriteSheet(sheet);
                     spritesCount = std::max<int>(spritesCount, lastSpriteId);
                 }
             }
@@ -217,8 +225,13 @@ bool ThingTypeManager::loadAppearances(const std::string& file)
         g_logger.error("Failed to load '{}' (Appearances): {}", file, e.what());
         return false;
     }
+#else
+    g_logger.error("Protobuf not supported in this build. Enable FRAMEWORK_PROTOBUF");
+    return false;
+#endif
 }
 
+#ifdef FRAMEWORK_PROTOBUF
 namespace {
     using RaceBank = google::protobuf::RepeatedPtrField<staticdata::Creature>;
 
@@ -294,6 +307,13 @@ bool ThingTypeManager::loadStaticData(const std::string& file)
 
     return false;
 }
+#else
+bool ThingTypeManager::loadStaticData(const std::string& file)
+{
+    g_logger.error("Protobuf not supported in this build. Enable FRAMEWORK_PROTOBUF");
+    return false;
+}
+#endif
 
 const ThingTypeList& ThingTypeManager::getThingTypes(const ThingCategory category)
 {

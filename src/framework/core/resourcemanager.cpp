@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2026 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,22 +20,16 @@
  * THE SOFTWARE.
  */
 
-#include <algorithm>
-#include <filesystem>
-#include <ranges>
-
-#include "filestream.h"
 #include "resourcemanager.h"
-#include <client/game.h>
-
-#include <framework/core/application.h>
-#include <framework/graphics/drawpoolmanager.h>
-#include <framework/luaengine/luainterface.h>
-#include <framework/net/protocolhttp.h>
-#include <framework/platform/platform.h>
-#include <framework/util/crypt.h>
 
 #include <physfs.h>
+
+#include "filestream.h"
+#include "graphicalapplication.h"
+#include "framework/graphics/drawpoolmanager.h"
+#include "framework/net/protocolhttp.h"
+#include "framework/platform/platform.h"
+#include "framework/util/crypt.h"
 
 ResourceManager g_resources;
 
@@ -243,23 +237,11 @@ std::string ResourceManager::readFileContents(const std::string& fileName)
     PHYSFS_close(file);
 
 #if ENABLE_ENCRYPTION == 1
-    const auto headerSize = std::string(ENCRYPTION_HEADER).size();
-    const bool hasHeader = (buffer.size() >= headerSize &&
-                            buffer.compare(0, headerSize, ENCRYPTION_HEADER) == 0);
-
-    if (hasHeader) {
-        buffer = buffer.substr(headerSize);
+    const std::string encHeader(ENCRYPTION_HEADER);
+    if (buffer.size() >= encHeader.size() &&
+        buffer.compare(0, encHeader.size(), encHeader) == 0) {
+        buffer = buffer.substr(encHeader.size());
         buffer = decrypt(buffer);
-    } else {
-        std::string path = fullPath;
-        std::replace(path.begin(), path.end(), '\\', '/');
-        if (path.compare(0, 5, std::string(AY_OBFUSCATE("/bot/"))) == 0) {
-            if (g_game.getFeature(Otc::GameAllowCustomBotScripts)) {
-                return buffer;
-            }
-            return "";
-        }
-        buffer = "";
     }
 #endif
 
@@ -310,13 +292,7 @@ bool ResourceManager::writeFileStream(const std::string& fileName, std::iostream
 
 bool ResourceManager::writeFileContents(const std::string& fileName, const std::string& data)
 {
-#if ENABLE_ENCRYPTION == 1
-    std::string encryptedData = encrypt(data, std::string(ENCRYPTION_PASSWORD));
-    std::string finalData = std::string(ENCRYPTION_HEADER) + encryptedData;
-    return writeFileBuffer(fileName, (const uint8_t*)finalData.c_str(), finalData.size());
-#else
     return writeFileBuffer(fileName, (const uint8_t*)data.c_str(), data.size());
-#endif
 }
 
 FileStreamPtr ResourceManager::openFile(const std::string& fileName)
@@ -551,24 +527,21 @@ uint8_t* ResourceManager::decrypt(uint8_t* data, const int32_t size)
     const auto& password = std::string(ENCRYPTION_PASSWORD);
     const int plen = password.length();
 
-    auto* const new_Data = new uint8_t[size];
-
     int j = 0;
     for (int i = -1; ++i < size;) {
         const int ct = data[i];
         if (i % 2) {
-            new_Data[i] = ct + password[j] - i;
+            data[i] = ct + password[j] - i;
         } else {
-            new_Data[i] = ct - password[j] + i;
+            data[i] = ct - password[j] + i;
         }
-        data[i] = new_Data[i];
         ++j;
 
         if (j >= plen)
             j = 0;
     }
 
-    return nullptr;
+    return data;
 }
 
 void ResourceManager::runEncryption(const std::string& password)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2026 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -77,12 +77,16 @@ namespace Proto
         GameServerCreatureShader = 54,
         GameServerMapShader = 55,
         GameServerCreatureTyping = 56,
+        GameServerAttachedPaperdoll = 60,
+        GameServerDetachPaperdoll = 61,
         GameServerFeatures = 67,
         GameServerFloorDescription = 75,
 
         // original tibia ONLY
+        GameServerWeaponProficiencyExperience = 92,
         GameServerImbuementDurations = 93,
         GameServerPassiveCooldown = 94,
+        GameServerOpenWheelWindow = 95, // 0x5F
         GameServerBosstiaryData = 97,
         GameServerBosstiarySlots = 98,
         GameServerSendClientCheck = 99,
@@ -172,10 +176,13 @@ namespace Proto
         GameServerFloorChangeUp = 190,
         GameServerFloorChangeDown = 191,
         GameServerLootContainers = 192,
+        GameServerMonkData = 193,
         GameServerCyclopediaHouseAuctionMessage = 195,
+        GameServerWeaponProficiencyInfo = 196,
         GameServerCyclopediaHousesInfo = 198,
         GameServerCyclopediaHouseList = 199,
         GameServerChooseOutfit = 200,
+        GameServerExivaRestrictions = 202,
         GameServerSendUpdateImpactTracker = 204,
         GameServerSendItemsPrice = 205,
         GameServerSendUpdateSupplyTracker = 206,
@@ -237,6 +244,7 @@ namespace Proto
         ClientPingBack = 30,
         ClientUseStash = 40,
         ClientBestiaryTrackerStatus = 42,
+        ClientPartyAnalyzerAction = 43,
 
         // all in game opcodes must be equal or greater than 50
         ClientFirstGameOpcode = 50,
@@ -250,6 +258,8 @@ namespace Proto
 
         // original tibia ONLY
         ClientImbuementDurations = 96,
+        ClientOpenWheel = 97, // server received 0x61
+        ClientSaveWheel = 98, // server received 0x62
         ClientAutoWalk = 100,
         ClientWalkNorth = 101,
         ClientWalkEast = 102,
@@ -320,7 +330,7 @@ namespace Proto
         ClientForgeEnter = 191,
         ClientForgeBrowseHistory = 192,
         ClientUpdateTile = 201,
-        ClientRefreshContainer = 202,
+        ClientRefreshContainer = 202, // > 11.00 ClientExivaRestrictions 
         ClientBrowseField = 203,
         ClientSeekInContainer = 204,
         ClientInspectionObject = 205,
@@ -345,7 +355,7 @@ namespace Proto
         ClientCyclopediaSendBuyCharmRune = 228,
         ClientCyclopediaRequestCharacterInfo = 229,
         ClientBugReport = 230,
-        ClientRuleViolation = 231,
+        ClientWheelGemAction = 231, // 0xE7 usado em gemas, desabilitado para ClientRuleViolation = 231
         ClientDebugReport = 232,
         ClientPreyAction = 235,
         ClientPreyRequest = 237,

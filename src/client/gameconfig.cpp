@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
- *
+ * Copyright (c) 2010-2026 OTClient <https://github.com/edubart/otclient>
+ 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -21,9 +21,16 @@
  */
 
 #include "gameconfig.h"
-#include <framework/core/resourcemanager.h>
-#include <framework/graphics/fontmanager.h>
-#include <framework/otml/otml.h>
+
+#include "framework/core/configmanager.h"
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "framework/core/resourcemanager.h"
+#include "framework/graphics/fontmanager.h"
+#include "framework/otml/otmldocument.h"
+#include "framework/otml/otmlnode.h"
 
 GameConfig g_gameConfig;
 
@@ -47,6 +54,13 @@ void GameConfig::init()
     } catch (const std::exception& e) {
         g_logger.error("Failed to read config otml '{}': {}'", fileName, e.what());
     }
+
+    // Override from config.ini
+    const auto& publicFont = g_configs.getPublicConfig().font;
+    if (!publicFont.widget.empty()) m_widgetTextFontName = publicFont.widget;
+    if (!publicFont.staticText.empty()) m_staticTextFontName = publicFont.staticText;
+    if (!publicFont.animatedText.empty()) m_animatedTextFontName = publicFont.animatedText;
+    if (!publicFont.creatureText.empty()) m_creatureNameFontName = publicFont.creatureText;
 }
 
 void GameConfig::terminate() {
@@ -57,6 +71,54 @@ void GameConfig::terminate() {
 }
 
 void GameConfig::loadFonts() {
+    auto resolveFont = [](std::string& fontName) {
+        if (fontName.find('|') == std::string::npos) return;
+
+        std::vector<std::string> parts;
+        std::string token;
+        std::istringstream tokenStream(fontName);
+        while (std::getline(tokenStream, token, '|')) {
+            parts.push_back(token);
+        }
+
+        if (parts.size() >= 2) {
+            std::string file = parts[0];
+            int size = 0;
+            try {
+                size = std::stoi(parts[1]);
+            } catch (...) {
+                g_logger.debug("Invalid TTF size in font descriptor: {}", fontName);
+                return;
+            }
+            if (size <= 0) {
+                g_logger.debug("TTF size must be > 0 in font descriptor: {}", fontName);
+                return;
+            }
+            int strokeWidth = 0;
+            Color strokeColor = Color::black;
+            if (parts.size() > 2) {
+                try { strokeWidth = std::stoi(parts[2]); } catch (...) { strokeWidth = 0; }
+                if (strokeWidth < 0) strokeWidth = 0;
+            }
+            if (parts.size() > 3) {
+                try {
+                    strokeColor = Color(parts[3]);
+                } catch (...) {
+                    g_logger.debug("Invalid stroke color in font descriptor: {}", fontName);
+                }
+            }
+            std::string actualName = g_fonts.importTTF(file, size, strokeWidth, strokeColor);
+            if (!actualName.empty()) {
+                fontName = actualName;
+            }
+        }
+    };
+
+    resolveFont(m_creatureNameFontName);
+    resolveFont(m_animatedTextFontName);
+    resolveFont(m_staticTextFontName);
+    resolveFont(m_widgetTextFontName);
+
     m_creatureNameFont = g_fonts.getFont(m_creatureNameFontName);
     m_animatedTextFont = g_fonts.getFont(m_animatedTextFontName);
     m_staticTextFont = g_fonts.getFont(m_staticTextFontName);
@@ -138,6 +200,8 @@ void GameConfig::loadCreatureNode(const OTMLNodePtr& mainNode) {
             m_volatileSquareDuration = node->value<int>();
         else if (node->tag() == "adjust-creature-information-based-crop-size")
             m_adjustCreatureInformationBasedCropSize = node->value<bool>();
+        else if (node->tag() == "use-crop-size-for-ui-draw")
+            m_useCropSizeForUIDraw = node->value<bool>();
         else if (node->tag() == "diagonal-walk-speed")
             m_creatureDiagonalWalkSpeed = node->value<double>();
         else if (node->tag() == "draw-information-by-widget-beta")

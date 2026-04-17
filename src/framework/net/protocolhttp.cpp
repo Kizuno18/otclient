@@ -34,10 +34,14 @@ std::shared_ptr<ix::HttpClient> g_ixHttpClient;
 
 void Http::init()
 {
-    m_working = true;
+    // Construct the client eagerly so every subsequent get/post/download/ws
+    // call can rely on it being available. Lazy initialization from each
+    // public method was not thread-safe and could construct a second client
+    // if a request came in after Http::terminate() reset the pointer.
     if (!g_ixHttpClient) {
         g_ixHttpClient = std::make_shared<ix::HttpClient>(true);
     }
+    m_working = true;
 }
 
 void Http::terminate()
@@ -88,8 +92,9 @@ int Http::get(const std::string& url, int timeout)
     if (!timeout)
         timeout = 5;
 
-    if (!g_ixHttpClient) {
-        g_ixHttpClient = std::make_shared<ix::HttpClient>(true);
+    if (!m_working || !g_ixHttpClient) {
+        g_logger.error("Http::get called while the client is not running ({})", url);
+        return -1;
     }
 
     const int operationId = m_operationId++;
@@ -172,8 +177,9 @@ int Http::post(const std::string& url, const std::string& data, int timeout, boo
         return -1;
     }
 
-    if (!g_ixHttpClient) {
-        g_ixHttpClient = std::make_shared<ix::HttpClient>(true);
+    if (!m_working || !g_ixHttpClient) {
+        g_logger.error("Http::post called while the client is not running ({})", url);
+        return -1;
     }
 
     const int operationId = m_operationId++;
@@ -261,8 +267,9 @@ int Http::download(const std::string& url, const std::string& path, int timeout)
     if (!timeout)
         timeout = 5;
 
-    if (!g_ixHttpClient) {
-        g_ixHttpClient = std::make_shared<ix::HttpClient>(true);
+    if (!m_working || !g_ixHttpClient) {
+        g_logger.error("Http::download called while the client is not running ({})", url);
+        return -1;
     }
 
     const int operationId = m_operationId++;
@@ -360,6 +367,11 @@ int Http::ws(const std::string& url, int timeout)
 {
     if (!timeout)
         timeout = 5;
+
+    if (!m_working) {
+        g_logger.error("Http::ws called while the client is not running ({})", url);
+        return -1;
+    }
 
     const int operationId = m_operationId++;
     auto result = std::make_shared<HttpResult>();

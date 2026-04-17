@@ -60,6 +60,10 @@ public:
     void terminate();
 
     int get(const std::string& url, int timeout = 5);
+    // NOTE: the trailing checkContentLength parameter is preserved for Lua
+    // binding compatibility but is no longer honoured; the old ASIO code
+    // inspected the Content-Length response header, ixwebsocket does not
+    // expose that hook. New call-sites should omit it.
     int post(const std::string& url, const std::string& data, int timeout = 5, bool isJson = false, bool checkContentLength = true);
     int download(const std::string& url, const std::string& path, int timeout = 5);
     int ws(const std::string& url, int timeout = 5);

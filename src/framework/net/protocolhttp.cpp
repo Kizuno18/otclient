@@ -102,11 +102,16 @@ int Http::get(const std::string& url, int timeout)
     auto request = buildRequest(url, ix::HttpClient::kGet, timeout);
     result->request = request;
 
-    request->onProgressCallback = [this, result](int current, int total) {
+    const auto lastProgress = std::make_shared<ticks_t>(0);
+
+    request->onProgressCallback = [this, result, lastProgress](int current, int total) {
         if (result->finished || result->canceled)
             return false;
 
         result->progress = computeProgress(current, total);
+        if (!shouldEmitProgress(*lastProgress, result->progress))
+            return true;
+
         g_dispatcher.addEvent([result] {
             if (!result->finished) {
                 g_lua.callGlobalField("g_http", "onGetProgress", result->operationId, result->url, result->progress);
@@ -170,11 +175,16 @@ int Http::post(const std::string& url, const std::string& data, int timeout, boo
         : "application/x-www-form-urlencoded";
     result->request = request;
 
-    request->onProgressCallback = [this, result](int current, int total) {
+    const auto lastProgress = std::make_shared<ticks_t>(0);
+
+    request->onProgressCallback = [this, result, lastProgress](int current, int total) {
         if (result->finished || result->canceled)
             return false;
 
         result->progress = computeProgress(current, total);
+        if (!shouldEmitProgress(*lastProgress, result->progress))
+            return true;
+
         g_dispatcher.addEvent([result] {
             if (!result->finished) {
                 g_lua.callGlobalField("g_http", "onPostProgress", result->operationId, result->url, result->progress);
@@ -226,21 +236,24 @@ int Http::download(const std::string& url, const std::string& path, int timeout)
     auto request = buildRequest(url, ix::HttpClient::kGet, timeout);
     result->request = request;
 
-    const auto lastUpdate = std::make_shared<ticks_t>(stdext::millis());
+    const auto lastSpeedSample = std::make_shared<ticks_t>(stdext::millis());
     const auto lastBytes = std::make_shared<int>(0);
+    const auto lastProgress = std::make_shared<ticks_t>(0);
 
-    request->onProgressCallback = [this, result, lastUpdate, lastBytes](int current, int total) {
+    request->onProgressCallback = [this, result, lastSpeedSample, lastBytes, lastProgress](int current, int total) {
         if (result->finished || result->canceled)
             return false;
 
         const ticks_t now = stdext::millis();
-        const ticks_t elapsed = now - *lastUpdate;
+        const ticks_t elapsed = now - *lastSpeedSample;
         if (elapsed > 0) {
             result->speed = ((current - *lastBytes) * 1000) / elapsed;
-            *lastUpdate = now;
+            *lastSpeedSample = now;
             *lastBytes = current;
         }
         result->progress = computeProgress(current, total);
+        if (!shouldEmitProgress(*lastProgress, result->progress))
+            return true;
 
         g_dispatcher.addEvent([result] {
             if (!result->finished) {
@@ -533,4 +546,17 @@ void Http::unregisterOperation(int operationId)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_operations.erase(operationId);
+}
+
+bool Http::shouldEmitProgress(ticks_t& lastEmit, int progress)
+{
+    // Port the 100 ms cadence the old ASIO implementation used so a busy
+    // download does not flood the dispatcher with a Lua callback per
+    // transfer tick. Always emit the terminal 100% update.
+    const ticks_t now = stdext::millis();
+    if (progress >= 100 || lastEmit == 0 || now - lastEmit >= 100) {
+        lastEmit = now;
+        return true;
+    }
+    return false;
 }

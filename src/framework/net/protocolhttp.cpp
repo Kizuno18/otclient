@@ -324,6 +324,11 @@ int Http::ws(const std::string& url, int timeout)
     websocket->setUrl(url);
     websocket->setHandshakeTimeout(timeout);
     websocket->setPingInterval(10);
+    // Keep the ix::WebSocket reconnection disabled: the Lua callbacks
+    // (onWsClose / onWsError) own the reconnection policy so any custom
+    // timing, authentication refresh or backoff implemented in the higher
+    // level modules keeps working. Re-enabling the built-in reconnection
+    // would race with the dispatcher-deferred cleanup of m_websockets.
     websocket->disableAutomaticReconnection();
 
     ix::WebSocketHttpHeaders headers;

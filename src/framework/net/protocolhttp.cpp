@@ -405,7 +405,24 @@ int Http::ws(const std::string& url, int timeout)
         if (msg->type == ix::WebSocketMessageType::Error) {
             result->error = msg->errorInfo.reason;
             const std::string errorReason = fmt::format("close_code::error {}", result->error);
-            g_dispatcher.addEvent([result, errorReason] {
+
+            // Mirror the Close branch: transfer the socket ownership to the
+            // dispatcher event so its destructor runs off the worker thread.
+            // Without this the websocket remained alive in m_websockets after
+            // a terminal error, leaking the connection until Http::terminate.
+            std::shared_ptr<ix::WebSocket> expiringSocket;
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                const auto wit = m_websockets.find(operationId);
+                if (wit != m_websockets.end()) {
+                    expiringSocket = std::move(wit->second);
+                    m_websockets.erase(wit);
+                }
+                m_operations.erase(operationId);
+            }
+
+            g_dispatcher.addEvent([result, errorReason, expiringSocket = std::move(expiringSocket)] {
+                (void)expiringSocket;
                 g_lua.callGlobalField("g_http", "onWsError", result->operationId, errorReason);
             });
         }

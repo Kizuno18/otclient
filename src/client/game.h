@@ -186,7 +186,7 @@ public:
     void useInventoryItem(uint16_t itemId);
     void useInventoryItemWith(uint16_t itemId, const ThingPtr& toThing);
     ItemPtr findItemInContainers(uint32_t itemId, int subType, uint8_t tier);
-    ItemPtr findPlayerItem(uint16_t itemId, int subType);
+    ItemPtr findPlayerItem(uint32_t itemId, int subType);
 
     // container related
     int open(const ItemPtr& item, const ContainerPtr& previousContainer);

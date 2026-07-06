@@ -906,10 +906,10 @@ void Game::useInventoryItemWith(const uint16_t itemId, const ThingPtr& toThing)
     g_lua.callGlobalField("g_game", "onUseWith", pos, itemId, toThing, 0);
 }
 
-ItemPtr Game::findPlayerItem(const uint16_t itemId, const int subType)
+ItemPtr Game::findPlayerItem(const uint32_t itemId, const int subType)
 {
     if (m_localPlayer) {
-        for (int slot = Otc::InventorySlotHead; slot <= Otc::InventorySlotAmmo; ++slot) {
+        for (int slot = Otc::InventorySlotHead; slot < Otc::LastInventorySlot; ++slot) {
             const auto& item = m_localPlayer->getInventoryItem(static_cast<Otc::InventorySlot>(slot));
             if (item && item->getId() == itemId && (subType == -1 || item->getSubType() == subType))
                 return item;

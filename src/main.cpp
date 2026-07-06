@@ -69,7 +69,7 @@ std::string parseUserDir(const std::vector<std::string>& args)
 {
     static const std::string prefix = "--user-dir=";
     for (const auto& arg : args) {
-        if (arg.rfind(prefix, 0) == 0)
+        if (arg.starts_with(prefix))
             return arg.substr(prefix.size());
     }
     return {};

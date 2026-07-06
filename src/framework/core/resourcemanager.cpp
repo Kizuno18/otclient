@@ -351,6 +351,18 @@ bool ResourceManager::discoverWorkDir(const std::string& existentFile)
 
 bool ResourceManager::setupUserWriteDir(const std::string& appWriteDirName)
 {
+    // a --user-dir override points every persisted file at a caller-chosen dir,
+    // so multiple isolated profiles can coexist. see #1540
+    if (!m_userDirOverride.empty()) {
+        std::error_code ec;
+        std::filesystem::create_directories(m_userDirOverride, ec);
+        if (ec) {
+            g_logger.error("Unable to create user directory '{}': {}", m_userDirOverride, ec.message());
+            return false;
+        }
+        return setWriteDir(m_userDirOverride);
+    }
+
     const std::string userDir = getUserDir();
     std::string dirName;
 #ifndef WIN32

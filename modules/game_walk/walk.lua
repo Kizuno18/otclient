@@ -120,6 +120,7 @@ local function walk(dir)
         end
     end
 
+    modules.game_interface.lastManualWalk = g_clock.millis()
     g_game.walk(dir)
     return true
 end
@@ -250,6 +251,9 @@ end
 
 --- Initializes the WalkController.
 function WalkController:onInit()
+    -- consumers (e.g. game_bot) read modules.game_interface.lastManualWalk to
+    -- pause automation while the player walks; keep it defined so it is never nil
+    modules.game_interface.lastManualWalk = 0
     bindKeys()
 end
 

@@ -22,8 +22,8 @@ void main() {
     const int MAX_STEPS = 2; // constant loop bound (WebGL2/GLSL ES rejects non-const)
     float maxDist = float(MAX_STEPS); // Reduced glow radius
 
-    for (int step = 1; step <= MAX_STEPS; step++) {
-        float dist = float(step);
+    for (int i = 1; i <= MAX_STEPS; i++) {
+        float dist = float(i);
         float weight = (maxDist - dist + 1.0) / maxDist;
 
         glow += texture2D(u_Tex0, v_TexCoord + vec2(-texelSize.x * dist, 0.0)).a * weight;

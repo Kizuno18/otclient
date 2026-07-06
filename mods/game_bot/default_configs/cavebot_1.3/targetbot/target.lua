@@ -214,6 +214,9 @@ TargetBot.enableLuring = function()
 end
 
 TargetBot.Danger = function()
+  if not TargetBot.isOn() then
+    return 0
+  end
   return dangerValue
 end
 

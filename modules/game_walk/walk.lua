@@ -251,9 +251,6 @@ end
 
 --- Initializes the WalkController.
 function WalkController:onInit()
-    -- consumers (e.g. game_bot) read modules.game_interface.lastManualWalk to
-    -- pause automation while the player walks; keep it defined so it is never nil
-    modules.game_interface.lastManualWalk = 0
     bindKeys()
 end
 

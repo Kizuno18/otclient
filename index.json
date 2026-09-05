@@ -1,0 +1,72 @@
+{
+ "1813": {
+  "branch": "fix/market-offer-amount-1813",
+  "title": "fix(market): read create-offer amount from the scroll bar",
+  "body_file": "prs-final/1813.md"
+ },
+ "1753": {
+  "branch": "fix/wheel-conviction-indices-1753",
+  "title": "fix(wheel): read conviction perks by name in the summary",
+  "body_file": "prs-final/1753.md"
+ },
+ "1691": {
+  "branch": "fix/forge-pending-events-1691",
+  "title": "fix(forge): cancel pending scheduled events on terminate",
+  "body_file": "prs-final/1691.md"
+ },
+ "1338": {
+  "branch": "fix/walk-same-direction-queue-1338",
+  "title": "fix(walk): queue same-direction key presses during walk cooldown",
+  "body_file": "prs-final/1338.md"
+ },
+ "1437": {
+  "branch": "fix/miniwindow-textedit-keys-1437",
+  "title": "fix(ui): route keys to text edits under non-focusable parents",
+  "body_file": "prs-final/1437.md"
+ },
+ "1399": {
+  "branch": "fix/html-position-setters-1399",
+  "title": "fix(ui): set the right unit in bottom/left/right setters",
+  "body_file": "prs-final/1399.md"
+ },
+ "1404": {
+  "branch": "fix/html-reactive-overflow-1404",
+  "title": "fix(ui): expose setOverflow to Lua so reactive *overflow works",
+  "body_file": "prs-final/1404.md"
+ },
+ "1729": {
+  "branch": "fix/mount-null-thingtype-1729",
+  "title": "fix(client): guard null mount thing type",
+  "body_file": "prs-final/1729.md"
+ },
+ "1601": {
+  "branch": "fix/stats-only-when-debug-open-1601",
+  "title": "fix(stats): collect stats only while the debug window is open",
+  "body_file": "prs-final/1601.md"
+ },
+ "1811.1": {
+  "branch": "fix/https-login-tls-1811",
+  "title": "fix(entergame): force TLS when the login URL is https",
+  "body_file": "prs-final/1811.1.md"
+ },
+ "1811.2": {
+  "branch": "fix/others-status-messages-1811",
+  "title": "fix(textmessage): honour the \"show others status messages\" option",
+  "body_file": "prs-final/1811.2.md"
+ },
+ "1811.4": {
+  "branch": "fix/combobox-text-align-1811",
+  "title": "fix(corelib): stop forcing centered text on combo boxes",
+  "body_file": "prs-final/1811.4.md"
+ },
+ "1811.5c": {
+  "branch": "fix/miniwindow-new-char-layout-1811",
+  "title": "fix(corelib): give new characters their own mini-window layout",
+  "body_file": "prs-final/1811.5c.md"
+ },
+ "1538": {
+  "branch": "feat/console-scrollback-option-1538",
+  "title": "feat(console): make chat scrollback length configurable",
+  "body_file": "prs-final/1538.md"
+ }
+}

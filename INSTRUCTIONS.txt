@@ -1,0 +1,7 @@
+You are opening 14 pull requests on opentibiabr/otclient from branches that already exist on the fork Kizuno18/otclient (each branch = upstream main dd56414 + exactly one commit). Do NOT modify any code, do NOT push anything, do NOT rebase. Only create the PRs.
+
+Steps:
+1. Use the github MCP tools (load them with ToolSearch, e.g. select:mcp__github__create_pull_request,mcp__github__list_pull_requests,mcp__github__search_pull_requests). If the github MCP is unavailable, try `gh pr create --repo opentibiabr/otclient --head Kizuno18:<branch> --base main --title ... --body-file ...` after writing each body to a file.
+2. For each entry below call create_pull_request with owner=opentibiabr, repo=otclient, base=main, head=Kizuno18:<branch>, maintainer_can_modify=true, the given title and the body VERBATIM (it already follows the repo PR template). Not draft. Do not add any footer, signature, model name or AI attribution to titles or bodies.
+3. Before creating, check with list/search that a PR with the same head does not already exist (avoid duplicates). If creation fails for one, record the exact error and continue with the others.
+4. Final answer: a plain list `branch -> PR URL` (or the error), nothing else.
